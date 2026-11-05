@@ -10,7 +10,7 @@ from datetime import timedelta
 import qrcode
 import qrcode.image.svg
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import delete, select
 
 from ..audit import audit
@@ -33,12 +33,12 @@ DENIED = f"Wrong username or password (after {MAX_FAILURES} failed attempts, wai
 
 
 class PasswordIn(BaseModel):
-    username: str
-    password: str
+    username: str = Field(max_length=256)
+    password: str = Field(max_length=256)  # cap input before Argon2id hashes it (CPU amplification)
 
 
 class CodeIn(BaseModel):
-    code: str
+    code: str = Field(max_length=16)
 
 
 async def _register_failure(db, user: User, ip: str, reason: str) -> None:
