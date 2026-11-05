@@ -1,0 +1,16 @@
+# Front door for local use: published on 127.0.0.1 only, so it is also the admin entrance.
+# Forwards to the gateway on the internal network (the gateway itself has no internet access).
+# In production edge/Caddyfile.proxy is used instead (separate public and admin listeners).
+{
+	admin off
+	auto_https off
+}
+
+:8080 {
+	header -Server
+	reverse_proxy api:8080 {
+		header_up X-TGV-Admin-Channel 1
+		header_down -Via
+	}
+	header -Via
+}

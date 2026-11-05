@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title data-i18n="adm.title">TG Viewer Admin</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/i18n.js" defer></script>
+  <script src="/static/admin.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <span class="brand" data-i18n="adm.brand">TG Viewer admin</span>
+    <span class="muted" data-i18n="adm.subtitle">Users and statistics. Admin accounts can't use Telegram or see users' chats.</span>
+    <span class="spacer"></span>
+    <span id="me-name" class="muted"></span>
+    <span class="lang-slot"></span>
+    <button class="link-btn" id="logout-btn" data-i18n="common.logout">Log out</button>
+  </header>
+  <div class="admin-banner" role="note">
+    <b data-i18n="adm.banner_title">🔒 Admin panel</b>
+    <span data-i18n="adm.banner_text">Reachable only through the admin tunnel to the server. Admin accounts manage users and see statistics; they can't use Telegram or read chats.</span>
+  </div>
+  <div class="admin">
+    <p class="error" id="error"></p>
+
+    <div class="card">
+      <h2 data-i18n="adm.users">Users</h2>
+      <form id="new-user" class="inline-form">
+        <input name="username" placeholder="new username" data-i18n-ph="adm.new_username" pattern="[A-Za-z0-9._-]{3,64}" required>
+        <select name="role"><option value="user" data-i18n="adm.role_user">User (uses Telegram)</option><option value="admin" data-i18n="adm.role_admin">Admin (no Telegram)</option></select>
+        <button type="submit" data-i18n="adm.create">Create user</button>
+      </form>
+      <div id="secret-box" class="secret-box hidden">
+        <p><b id="secret-title"></b></p>
+        <p><span data-i18n="adm.temp_pw">Temporary password:</span> <code id="secret-value"></code></p>
+        <p class="muted" data-i18n="adm.temp_pw_hint">Shown once. Give it to the user over a separate channel. They must change it at first
+          login and set up their authenticator app then.</p>
+        <button class="small" id="secret-close" data-i18n="adm.done">Done</button>
+      </div>
+      <table id="users"></table>
+    </div>
+
+    <div class="card gap-top">
+      <h2 data-i18n="adm.events">Events: logins and admin actions</h2>
+      <div class="inline-form">
+        <select id="events-filter">
+          <option value="all" data-i18n="adm.ev_all">All events</option>
+          <option value="failed" data-i18n="adm.ev_failed">Failures only</option>
+          <option value="login" data-i18n="adm.ev_login">Logins only</option>
+          <option value="admin" data-i18n="adm.ev_admin">Admin actions only</option>
+        </select>
+        <button type="button" class="small" id="events-refresh" data-i18n="adm.ev_refresh">Refresh</button>
+      </div>
+      <table id="events"></table>
+    </div>
+
+    <h2 class="section-title" data-i18n="adm.stats">Statistics</h2>
+    <label class="muted"><span data-i18n="adm.period">Period</span>
+      <select id="days"><option value="1" data-i18n="adm.d1">1 day</option><option value="7" data-i18n="adm.d7">7 days</option>
+        <option value="14" selected data-i18n="adm.d14">14 days</option><option value="30" data-i18n="adm.d30">30 days</option><option value="90" data-i18n="adm.d90">90 days</option></select>
+    </label>
+    <div class="tiles" id="tiles"></div>
+    <div class="card"><h2 data-i18n="adm.per_day">Scans per day</h2><div class="legend" id="legend"></div><div class="daybars" id="daily"></div></div>
+    <div class="grid gap-top">
+      <div class="card"><h2 data-i18n="adm.by_engine">Detections by engine</h2><table id="engines"></table></div>
+      <div class="card"><h2 data-i18n="adm.top_domains">Top blocked / suspicious domains</h2><table id="domains"></table></div>
+      <div class="card"><h2 data-i18n="adm.top_files">Top file detections</h2><table id="detections"></table></div>
+      <div class="card"><h2 data-i18n="adm.file_types">File types</h2><table id="types"></table></div>
+      <div class="card"><h2 data-i18n="adm.clicks">Link clicks</h2><table id="clicks"></table></div>
+      <div class="card"><h2 data-i18n="adm.per_user">Per user (counts only)</h2><table id="per-user"></table></div>
+      <div class="card"><h2 data-i18n="adm.ops">Engines &amp; feeds</h2><table id="ops"></table></div>
+    </div>
+  </div>
+</body>
+</html>

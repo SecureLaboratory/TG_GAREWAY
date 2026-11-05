@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>TG Viewer</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/i18n.js" defer></script>
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <!-- Login -->
+  <section id="view-login" class="card center hidden">
+    <div class="card-lang lang-slot"></div>
+    <h1>TG Viewer</h1>
+    <p class="muted" data-i18n="login.subtitle">Secure Telegram gateway</p>
+    <form id="login-form" autocomplete="on">
+      <label><span data-i18n="login.username">Username</span> <input name="username" autocomplete="username" required></label>
+      <label><span data-i18n="login.password">Password</span> <input name="password" type="password" autocomplete="current-password" required></label>
+      <button type="submit" data-i18n="common.continue">Continue</button>
+    </form>
+    <form id="login-totp" class="hidden">
+      <p data-i18n="login.totp_prompt">Enter the 6-digit code from your authenticator app.</p>
+      <label><span data-i18n="login.totp_code">Authenticator code</span> <input name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="8" required></label>
+      <button type="submit" data-i18n="login.login">Log in</button>
+    </form>
+    <form id="login-enroll" class="hidden">
+      <p><b data-i18n="enroll.title">Set up two-factor authentication.</b> <span data-i18n="enroll.text">Scan this QR code
+        with an authenticator app (Microsoft Authenticator, Google Authenticator, …), then enter the code it shows.</span></p>
+      <img id="enroll-qr" class="qr" alt="Authenticator QR code" data-i18n-alt="enroll.qr_alt">
+      <p class="muted"><span data-i18n="enroll.manual">Can't scan? Add the account manually with this key:</span><br><code id="enroll-secret"></code></p>
+      <label><span data-i18n="enroll.code">Code from the app</span> <input name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="8" required></label>
+      <button type="submit" data-i18n="enroll.confirm">Confirm and log in</button>
+    </form>
+    <form id="login-newpass" class="hidden">
+      <p><b data-i18n="newpass.title">Choose your own password.</b> <span data-i18n="newpass.text">The one you received was temporary.</span></p>
+      <label><span data-i18n="newpass.new">New password (at least 12 characters)</span> <input name="password" type="password" autocomplete="new-password" minlength="12" required></label>
+      <label><span data-i18n="newpass.repeat">Repeat new password</span> <input name="repeat" type="password" autocomplete="new-password" minlength="12" required></label>
+      <button type="submit" data-i18n="newpass.save">Save and log in</button>
+    </form>
+    <p class="error" id="login-error"></p>
+    <p><button class="link-btn hidden" id="login-restart" data-i18n="login.restart">Start again</button></p>
+  </section>
+
+  <!-- Consent -->
+  <section id="view-consent" class="card center wide hidden">
+    <div class="card-lang lang-slot"></div>
+    <h1 data-i18n="consent.title">Terms of use and privacy notice</h1>
+    <p data-i18n="consent.intro"></p>
+    <h3 data-i18n="consent.stored_h">What is stored</h3>
+    <ul>
+      <li data-i18n="consent.s_account"></li>
+      <li data-i18n="consent.s_session"></li>
+      <li data-i18n-policy="consent.s_files"></li>
+      <li data-i18n-policy="consent.s_links"></li>
+      <li data-i18n="consent.s_meta"></li>
+      <li data-i18n="consent.s_audit"></li>
+    </ul>
+    <h3 data-i18n="consent.never_h">What is never stored or logged</h3>
+    <ul>
+      <li data-i18n="consent.n_text"></li>
+      <li data-i18n="consent.n_passwords"></li>
+      <li data-i18n="consent.n_contacts"></li>
+      <li data-i18n="consent.n_outside"></li>
+    </ul>
+    <h3 data-i18n="consent.who_h">Who can see what</h3>
+    <ul>
+      <li data-i18n="consent.w_admin"></li>
+      <li data-i18n="consent.w_sec"></li>
+    </ul>
+    <h3 data-i18n="consent.rights_h">Your choices</h3>
+    <ul>
+      <li data-i18n="consent.r_unlink"></li>
+      <li data-i18n="consent.r_leave"></li>
+      <li data-i18n="consent.r_phone"></li>
+    </ul>
+    <p class="muted" data-i18n-policy="consent.session"></p>
+    <button id="consent-accept" data-i18n="consent.accept">I have read this and agree</button>
+    <button id="consent-back" class="link-btn hidden" data-i18n="consent.back">Back</button>
+  </section>
+
+  <!-- Link Telegram -->
+  <section id="view-link" class="card center hidden">
+    <div class="card-lang lang-slot"></div>
+    <h1 data-i18n="link.title">Link your Telegram</h1>
+    <p class="error hidden" id="link-notconfigured" data-i18n="link.notconfigured">The administrator hasn't configured the Telegram API credentials yet (TG_API_ID / TG_API_HASH).</p>
+    <form id="link-phone" class="hidden">
+      <p><button type="button" id="link-qr-start" data-i18n="link.qr_start">Link with a QR code (no code needed)</button></p>
+      <p class="muted" data-i18n="link.or_phone">Or with your phone number and a login code:</p>
+      <label><span data-i18n="link.phone">Phone number</span> <input name="phone" placeholder="+380..." autocomplete="tel" required></label>
+      <button type="submit" data-i18n="link.send">Send code</button>
+    </form>
+    <div id="link-qr" class="hidden">
+      <p data-i18n="link.qr_steps">On your phone open Telegram → Settings → Devices → Link Desktop Device, and scan this code.</p>
+      <img id="link-qr-img" class="qr" alt="Telegram login QR code" data-i18n-alt="link.qr_alt">
+      <p class="muted" data-i18n="link.qr_renew">The code renews itself about every 30 seconds. Keep this page open until your chats appear.</p>
+      <p><button type="button" class="link-btn" id="link-qr-cancel" data-i18n="link.qr_cancel">Use the phone number instead</button></p>
+    </div>
+    <form id="link-code" class="hidden">
+      <p class="muted" id="link-code-hint"></p>
+      <label><span data-i18n="link.code">Code</span> <input name="code" inputmode="numeric" autocomplete="one-time-code" required></label>
+      <button type="submit" data-i18n="link.signin">Sign in</button>
+      <p><button type="button" class="link-btn hidden" id="link-resend"></button></p>
+    </form>
+    <form id="link-password" class="hidden">
+      <p class="muted" data-i18n="link.2fa">Your account has two-step verification. The password goes to Telegram only and isn't stored.</p>
+      <label><span data-i18n="link.tgpass">Telegram password</span> <input name="password" type="password" autocomplete="off" required></label>
+      <button type="submit" data-i18n="common.continue">Continue</button>
+    </form>
+    <p class="error" id="link-error"></p>
+    <p><button class="link-btn" data-action="privacy" data-i18n="main.privacy">Privacy</button> · <button class="link-btn" data-action="logout" data-i18n="common.logout">Log out</button></p>
+  </section>
+
+  <!-- Isolated browser (official Telegram Web, streamed) -->
+  <div id="view-desk" class="hidden">
+    <header class="topbar">
+      <span class="brand">TG Viewer</span>
+      <span class="muted" data-i18n="desk.subtitle">Telegram Web in an isolated browser</span>
+      <span class="spacer"></span>
+      <span id="desk-me" class="muted"></span>
+      <span class="lang-slot"></span>
+      <button class="link-btn" id="desk-toggle-files" data-i18n="desk.files">Files</button>
+      <button class="link-btn" id="desk-restart" data-i18n="desk.restart">Restart browser</button>
+      <button class="link-btn" id="desk-reset" data-i18n="desk.reset">Reset</button>
+      <button class="link-btn" data-action="logout" data-i18n="common.logout">Log out</button>
+    </header>
+    <div class="desk-layout">
+      <div class="desk-stage">
+        <p id="desk-status" class="desk-status muted" data-i18n="desk.starting">Starting your isolated browser…</p>
+        <iframe id="desk-frame" title="Isolated browser with Telegram Web" data-i18n-title="desk.frame" class="hidden"></iframe>
+      </div>
+      <aside id="desk-files" class="desk-files">
+        <h3 data-i18n="desk.downloads">Downloads</h3>
+        <p class="muted small-text" data-i18n="desk.downloads_hint">Files you download in Telegram Web appear here after scanning. Only clean files can be saved to this PC.</p>
+        <div id="desk-downloads"></div>
+        <h3 data-i18n="desk.send">Send a file</h3>
+        <p class="muted small-text"><span data-i18n="desk.send_hint1">Files are scanned and checked for sensitive data first, then appear in the browser's</span>
+          <b>Uploads</b> <span data-i18n="desk.send_hint2">folder: attach them in Telegram from there.</span></p>
+        <label class="btn small"><span data-i18n="desk.choose">Choose file</span><input type="file" id="desk-upload" multiple hidden></label>
+        <div id="desk-outbox"></div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div id="view-main" class="hidden">
+    <header class="topbar">
+      <span class="brand">TG Viewer</span>
+      <button class="link-btn" id="toggle-list" aria-controls="chat-list" aria-expanded="true">Hide chats</button>
+      <span class="muted" id="tg-phone"></span>
+      <span class="spacer"></span>
+
+      <span id="me-name" class="muted"></span>
+      <span class="lang-slot"></span>
+      <button class="link-btn" data-action="privacy" data-i18n="main.privacy">Privacy</button>
+      <button class="link-btn" id="unlink-btn" data-i18n="main.unlink">Unlink Telegram</button>
+      <button class="link-btn" data-action="logout" data-i18n="common.logout">Log out</button>
+    </header>
+    <div class="layout">
+      <aside id="chat-list" aria-label="Chats"></aside>
+      <div id="splitter" class="splitter" role="separator" aria-orientation="vertical" aria-controls="chat-list" tabindex="0" data-i18n-title="main.resize"></div>
+      <main class="chat">
+        <div class="chat-head"><h2 id="chat-title" data-i18n="main.select">Select a chat</h2></div>
+        <div id="messages" aria-live="polite"></div>
+        <div id="outbox"></div>
+        <p id="readonly-note" class="muted readonly-note hidden"></p>
+        <form id="composer" class="hidden">
+          <label class="attach" title="Attach a file (scanned before sending)" data-i18n-title="main.attach">📎<input type="file" id="file-input" multiple></label>
+          <button type="button" class="emoji-btn" id="emoji-btn" title="Emoji" data-i18n-title="main.emoji">😀</button>
+          <div id="emoji-panel" class="emoji-panel hidden"></div>
+          <textarea id="text-input" rows="2" placeholder="Write a message… (Enter to send, Shift+Enter for a new line)" data-i18n-ph="main.placeholder"></textarea>
+          <button type="submit" data-i18n="main.send">Send</button>
+        </form>
+      </main>
+    </div>
+  </div>
+  <footer id="build-info" class="build-info muted hidden"></footer>
+</body>
+</html>

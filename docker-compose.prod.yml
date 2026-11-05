@@ -1,0 +1,28 @@
+# Production override: the service behind a TLS-terminating reverse proxy or load balancer
+# (any: nginx, Traefik, HAProxy, a cloud load balancer). See docs/PRODUCTION.md.
+#
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.prod.yml                          (secrets in .env)
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.prod.yml:docker-compose.secrets.yml (secrets as files)
+#
+# TGV_DOMAIN and TRUSTED_PROXY_CIDR come from .env.
+
+services:
+  edge:
+    ports: !override
+      # Public listener (users; admin area only for ADMIN_ALLOWED_IPS, checked by the gateway). Only the TLS proxy may reach it (firewall).
+      # PUBLIC_BIND=10.0.0.5:8080 binds it to one address only.
+      - "${PUBLIC_BIND:-8080}:8080"
+      - "127.0.0.1:8081:8081"   # admin entrance: only from the host itself (SSH tunnel)
+    volumes: !override
+      - ./edge/Caddyfile.proxy:/etc/caddy/Caddyfile:ro
+    environment:
+      TGV_DOMAIN: ${TGV_DOMAIN:?set TGV_DOMAIN in .env, e.g. tg.example.com}
+      TRUSTED_PROXY_CIDR: ${TRUSTED_PROXY_CIDR:?set TRUSTED_PROXY_CIDR in .env (addresses of your TLS proxy), e.g. 10.0.0.0/16}
+
+  api:
+    environment:
+      COOKIE_SECURE: "true"          # HTTPS at the proxy: Secure + __Host- cookies, HSTS
+      # localhost: admin access through the tunnel to 127.0.0.1:8081
+      ALLOWED_HOSTS: "${TGV_DOMAIN},localhost,127.0.0.1"
+      # Client IP: trust X-Forwarded-For from the edge and the TLS proxy only.
+      FORWARDED_ALLOW_IPS: "10.214.0.10,${TRUSTED_PROXY_CIDR}"

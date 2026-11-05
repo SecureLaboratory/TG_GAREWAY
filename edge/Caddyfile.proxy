@@ -1,0 +1,57 @@
+# Front door in production, behind a TLS-terminating reverse proxy or load balancer
+# (docker-compose.prod.yml).
+#   :8080  public listener   - the TLS proxy forwards here; a firewall lets only the proxy reach
+#                              it. No admin area, unless the client IP is in ADMIN_ALLOWED_IPS
+#                              (the gateway checks the real client IP; this header is stripped).
+#   :8081  admin entrance    - published on 127.0.0.1 of the host only: reach it through an SSH
+#                              tunnel. Never behind the proxy.
+# TGV_DOMAIN and TRUSTED_PROXY_CIDR come from .env.
+{
+	admin off
+	auto_https off
+	servers {
+		# Keep the real client address that the TLS proxy puts in X-Forwarded-For.
+		trusted_proxies static {$TRUSTED_PROXY_CIDR}
+	}
+}
+
+:8080 {
+	header -Server
+	header -Via
+
+	# Health check: load balancers often call the host by IP; present the real host name.
+	@health path /healthz
+	handle @health {
+		reverse_proxy api:8080 {
+			header_up Host {$TGV_DOMAIN}
+			header_up -X-TGV-Admin-Channel
+		}
+	}
+
+	handle {
+		reverse_proxy api:8080 {
+			# Never let a client claim the admin entrance through the public listener.
+			header_up -X-TGV-Admin-Channel
+			header_down -Via
+		}
+	}
+
+	# Errors Caddy produces itself (e.g. gateway still starting): no software name, no details.
+	handle_errors {
+		header -Server
+		respond "Service temporarily unavailable" {err.status_code}
+	}
+}
+
+:8081 {
+	header -Server
+	header -Via
+	reverse_proxy api:8080 {
+		header_up X-TGV-Admin-Channel 1
+		header_down -Via
+	}
+	handle_errors {
+		header -Server
+		respond "Service temporarily unavailable" {err.status_code}
+	}
+}

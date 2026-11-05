@@ -1,0 +1,100 @@
+name: tgviewer
+
+# Network layout
+#   front     PC -> edge only
+#   backend   internal (no internet): edge, api, postgres, clamav, egress
+#   outside   egress proxy -> internet (allowlisted destinations only)
+#   (client mode: no per-user browser networks)
+networks:
+  front: {}
+  backend:
+    internal: true
+    ipam:
+      config:
+        - subnet: 10.214.0.0/24
+  outside: {}
+
+services:
+  edge:
+    image: caddy:2.10-alpine
+    ports:
+      - "127.0.0.1:8080:8080"   # local only for now; TLS is added here before real use
+    volumes:
+      - ./edge/Caddyfile:/etc/caddy/Caddyfile:ro
+    networks:
+      front: {}
+      backend:
+        ipv4_address: 10.214.0.10
+    depends_on: [api]
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]   # the caddy binary carries this file capability; everything else dropped
+
+  api:
+    build: ./app
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgresql+asyncpg://tgv:${POSTGRES_PASSWORD:-tgv-local}@postgres:5432/tgv
+      CLAMAV_HOST: clamav
+      ACCESS_MODE: client                      # this branch: our own Telegram client (option C)
+      TELEGRAM_PROXY: http://egress:3130       # MTProto only to Telegram's IP ranges, via the egress proxy
+      SERVICE_PROXY: http://egress:3129        # feeds / VirusTotal go out only via the allowlist
+      FORWARDED_ALLOW_IPS: 10.214.0.10         # trust X-Forwarded-For from the edge only
+    volumes:
+      - appdata:/data
+    networks: [backend]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      clamav:
+        condition: service_started
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    read_only: true            # code and OS files immutable; data only in /data, temp in /tmp
+    tmpfs: [/tmp]
+
+  egress:
+    build: ./egress
+    environment:
+      BROWSER_ALLOWED_DOMAINS: ${BROWSER_ALLOWED_DOMAINS:-.telegram.org,.t.me,.telegram.me,.telegram.dog,.telesco.pe,.cdn-telegram.org,.telegram-cdn.org}
+      SERVICE_ALLOWED_DOMAINS: ${SERVICE_ALLOWED_DOMAINS:-.abuse.ch,openphish.com,raw.githubusercontent.com,tranco-list.eu,github.com,objects.githubusercontent.com,release-assets.githubusercontent.com,www.virustotal.com,.clamav.net}
+    networks: [backend, outside]
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: tgv
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tgv-local}
+      POSTGRES_DB: tgv
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks: [backend]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tgv -d tgv"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+
+  clamav:
+    # Official image: freshclam (signature updates, via the egress proxy) + clamd on TCP 3310.
+    image: clamav/clamav:1.4
+    volumes:
+      - clamdb:/var/lib/clamav
+      - ./clamav/freshclam.conf:/etc/clamav/freshclam.conf:ro
+      - ./clamav/clamd.conf:/etc/clamav/clamd.conf:ro
+    networks: [backend]
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+
+volumes:
+  appdata:
+  pgdata:
+  clamdb:
