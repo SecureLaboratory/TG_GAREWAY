@@ -37,7 +37,7 @@ TEXT = {
 
 
 def _page(lang: str, title: str, body: str, status: int = 200) -> HTMLResponse:
-    html = (f'<!doctype html><html lang="{lang}"><head><meta charset="utf-8">'
+    html = (f'<!doctype html><html lang="{escape(lang)}"><head><meta charset="utf-8">'
             f'<meta name="viewport" content="width=device-width, initial-scale=1">'
             f'<meta name="referrer" content="no-referrer"><title>{escape(title)}</title>'
             f'<link rel="stylesheet" href="/static/style.css"></head>'

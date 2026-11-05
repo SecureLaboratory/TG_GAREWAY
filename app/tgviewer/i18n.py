@@ -11,9 +11,10 @@ LANGS = ("en", "uk")
 
 
 def pick(request) -> str:
-    lang = request.cookies.get("tgv_lang")
-    if lang in LANGS:
-        return lang
+    cookie = request.cookies.get("tgv_lang")
+    for lang in LANGS:  # return our own constant, never the cookie's string
+        if cookie == lang:
+            return lang
     for part in request.headers.get("accept-language", "").split(","):
         tag = part.split(";")[0].strip().lower()
         if tag.startswith("uk"):
