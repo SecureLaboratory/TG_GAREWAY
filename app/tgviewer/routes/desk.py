@@ -6,7 +6,6 @@ container's address and password never reach the PC; the gateway adds them upstr
 import asyncio
 import os
 import logging
-from pathlib import Path
 from urllib.parse import urlsplit
 
 import websockets
@@ -25,7 +24,7 @@ from ..models import FileObj, User
 log = logging.getLogger(__name__)
 router = APIRouter()
 # Same KasmVNC version as the browser image (see app/Dockerfile and browser/Dockerfile).
-KASM_WWW = Path(os.environ.get("KASM_WWW", "/app/kasmvnc-www")).resolve()
+KASM_WWW = os.path.realpath(os.environ.get("KASM_WWW", "/app/kasmvnc-www"))
 
 
 def _require_browser_mode() -> None:
@@ -86,8 +85,9 @@ async def desk_client(path: str, user: User = Depends(telegram_user)):
     _require_browser_mode()
     if path.split("/", 1)[0].lower() == "downloads":  # KasmVNC's direct download folder: never
         raise HTTPException(404)
-    target = (KASM_WWW / (path or "index.html")).resolve()
-    if not target.is_relative_to(KASM_WWW) or not target.is_file():
+    # realpath + prefix check (the form CodeQL recognises): blocks "..", absolute paths and symlinks out.
+    target = os.path.realpath(os.path.join(KASM_WWW, path or "index.html"))
+    if not target.startswith(KASM_WWW + os.sep) or not os.path.isfile(target):
         raise HTTPException(404)
     return FileResponse(target, headers={"Cache-Control": "private, max-age=3600"})
 

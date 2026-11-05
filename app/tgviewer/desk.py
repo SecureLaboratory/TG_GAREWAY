@@ -192,9 +192,11 @@ async def watch_downloads() -> None:
                 except ValueError:
                     continue
                 for path in folder.iterdir():
-                    if not path.is_file() or path.name.startswith(".") or path.name.endswith(TEMP_SUFFIXES):
+                    # The browser can write symlinks here: never follow them (they'd resolve on the gateway).
+                    if path.is_symlink() or not path.is_file() or path.name.startswith(".") \
+                            or path.name.endswith(TEMP_SUFFIXES):
                         continue
-                    st = path.stat()
+                    st = path.lstat()
                     signature = (st.st_size, st.st_mtime)
                     if seen.get(path) != signature:  # wait until it stops changing
                         seen[path] = signature

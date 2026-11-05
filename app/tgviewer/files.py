@@ -141,11 +141,15 @@ async def ingest_browser_download(user_id: int, src: Path) -> None:
             src.unlink(missing_ok=True)
             return
         f = FileObj(id=new_id(), user_id=user_id, direction="inbound", chat_id=0, chat_kind="browser",
-                    name=safe_name(src.name), size=src.stat().st_size, status="scanning")
+                    name=safe_name(src.name), size=src.lstat().st_size, status="scanning")
         qdir = _qdir("inbound", f.id)
         qdir.mkdir(parents=True, exist_ok=True)
         path = qdir / f.name
         await asyncio.to_thread(shutil.move, str(src), path)
+        if path.is_symlink() or not path.is_file():  # swapped for a link after the watcher looked
+            shutil.rmtree(qdir, ignore_errors=True)
+            log.warning("dropped non-regular browser download for user %s", user_id)
+            return
         f.q_path = str(path)
         if f.size > settings.max_file_mb * 2**20:
             f.status, f.reason = "too_large", f"larger than {settings.max_file_mb} MB"
